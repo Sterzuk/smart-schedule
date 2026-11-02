@@ -1,0 +1,11 @@
+{
+  "$schema": "https://layero.ru/schema/layero-v2.json",
+  "framework": "generic",
+  "buildCommand": "npm run build",
+  "outputDirectory": "out",
+  "nodeVersion": "22",
+  "env": {
+    "STATIC_EXPORT": "true",
+    "NEXT_PUBLIC_API_URL": "https://smart-schedule-api.layero.app/api"
+  }
+}

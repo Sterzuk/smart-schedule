@@ -2,6 +2,10 @@
 
 MVP веб-сервиса для школьного расписания: чат-бот, который понимает вопросы обычным языком, и подробная таблица уроков с комбинируемыми фильтрами.
 
+**Демо:** <https://smart-schedule.layero.app>
+
+**API:** <https://smart-schedule-api.layero.app/api/health>
+
 Проект полностью работает локально и не использует платные AI-сервисы. Запросы разбирает предсказуемый парсер на TypeScript, а данные для чата и фильтров берутся из одной базы через backend API.
 
 ## Что умеет приложение
@@ -39,14 +43,16 @@ smart-schedule/
 │  ├─ prisma/
 │  │  ├─ migrations/        # SQLite-миграция
 │  │  ├─ schema.prisma
-│  │  └─ seed.ts            # демо-данные и проверка конфликтов
+│  │  └─ seed.ts            # локальный запуск seed
 │  ├─ scripts/
-│  │  └─ prisma-cli.cjs     # запуск Prisma, в т.ч. с локальными движками
+│  │  ├─ prisma-cli.cjs     # запуск Prisma, в т.ч. с локальными движками
+│  │  └─ start-layero.cjs   # миграции + запуск в контейнере Layero
 │  └─ src/
 │     ├─ chatbot/           # парсер и ответы чат-бота
 │     ├─ filters/           # единая фильтрация и метаданные
+│     ├─ prisma/            # PrismaService и авто-заполнение пустой базы
 │     ├─ schedule/          # REST-контроллер расписания
-│     └─ common/            # формат ошибок, константы, утилиты
+│     └─ common/            # формат ошибок, константы, утилиты, демо-данные
 ├─ frontend/
 │  └─ src/
 │     ├─ app/               # главная, /chat, /schedule
@@ -172,7 +178,7 @@ npm start
 | 7 | Алгебра (205/304) | — | Физика (301) | УК Информатика (401/414) | Обществознание (111) |
 | 8 | Алгебра (205/304) | — | ВД Физический практикум (301) | Россия — мои горизонты (105) | — |
 
-Полные данные находятся в `backend/prisma/seed.ts`, а также доступны в интерфейсе и API.
+Полные данные находятся в `backend/src/common/demo-schedule.ts`, а также доступны в интерфейсе и API. Этот же файл используется локальным seed-скриптом и автоматическим заполнением пустой базы при старте backend.
 
 При заполнении базы seed проверяет:
 
@@ -365,36 +371,44 @@ npm run test:api
 
 ## Деплой
 
-Проект разделён на два приложения, поэтому используется два сервиса:
+Основной стенд — российский хостинг **Layero** (серверы в РФ, сайт работает без VPN). Проект разделён на два независимых приложения:
 
-- **frontend** — Vercel (Next.js);
-- **backend** — Render (NestJS + Prisma + SQLite). Vercel не подходит для backend: там нет постоянной файловой системы для SQLite.
+| Что | Где | Адрес |
+| --- | --- | --- |
+| Frontend (Next.js, статическая сборка) | Layero, проект `smart-schedule` | <https://smart-schedule.layero.app> |
+| Backend (NestJS + Prisma + SQLite) | Layero, проект `smart-schedule-api` | <https://smart-schedule-api.layero.app/api> |
 
-### Backend на Render
+### Как устроен деплой на Layero
 
-В репозитории есть blueprint `render.yaml`:
+- `frontend/layero.json` включает статическую сборку (`STATIC_EXPORT=true`), кладёт результат в `out/` и передаёт `NEXT_PUBLIC_API_URL`.
+- `backend/layero.json` запускает Node-контейнер `node_web`; `backend/scripts/start-layero.cjs` применяет миграции, после чего NestJS при старте заполняет пустую базу 37 уроками 10-Б.
+- Диск контейнера на Layero эфемерный, поэтому SQLite пересоздаётся при каждом холодном старте. Для демо-расписания это безопасно: данные только читаются и восстанавливаются из `backend/src/common/demo-schedule.ts`.
+- Backend «засыпает» при простое; первый запрос после паузы может занять 4–15 секунд. Frontend статический и открывается сразу.
 
-1. Откройте <https://dashboard.render.com/select-repo?type=blueprint> и выберите репозиторий.
-2. Render создаст сервис `smart-schedule-api` из `render.yaml`.
-3. Дождитесь первого деплоя и проверьте `https://<service>.onrender.com/api/health`.
+### Обновить сайт
 
-На бесплатном тарифе диск эфемерный, поэтому миграция и seed выполняются при каждом старте. Для этого расписания это безопасно: данные доступны только для чтения и полностью воссоздаются из `backend/prisma/seed.ts`.
+Backend (из корня репозитория):
 
-### Frontend на Vercel
-
-1. Откройте <https://vercel.com/new> и импортируйте тот же репозиторий.
-2. В настройках проекта укажите **Root Directory**: `frontend`.
-3. Добавьте переменную окружения:
-   - `NEXT_PUBLIC_API_URL = https://<service>.onrender.com/api`
-4. Нажмите **Deploy**.
-
-После публикации добавьте адрес Vercel в `CORS_ORIGIN` сервиса Render (вместо `*`), например:
-
-```dotenv
-CORS_ORIGIN="https://smart-schedule.vercel.app"
+```bash
+npx layero deploy --root backend --type node_web --project smart-schedule-api --yes
 ```
 
-и перезапустите backend.
+Frontend:
+
+```bash
+cd frontend
+npx layero deploy --type generic --yes
+```
+
+Обе команды требуют входа `npx layero@latest login`. Настройки сборки и публичные переменные лежат в `backend/layero.json` и `frontend/layero.json`.
+
+### Резервный вариант: Render + Vercel
+
+В репозитории остаются `render.yaml` и поддержка Vercel — их можно использовать как запасной стенд.
+
+1. Backend: создайте Blueprint из `render.yaml` в Render — появится сервис `smart-schedule-api`.
+2. Frontend: импортируйте репозиторий в Vercel, укажите Root Directory `frontend` и переменную `NEXT_PUBLIC_API_URL=https://<service>.onrender.com/api`.
+3. После публикации добавьте origin frontend в `CORS_ORIGIN` backend (вместо `*`) и перезапустите сервис.
 
 ## Переход на PostgreSQL
 

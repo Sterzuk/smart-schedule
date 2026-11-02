@@ -27,6 +27,9 @@ backend/.prisma-engines/
 .vercel-home/
 .vercel/
 
+# Layero CLI local project links
+.layero/
+
 # logs and tooling
 *.log
 npm-debug.log*

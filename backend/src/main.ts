@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -9,7 +9,9 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
 
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: '/', method: RequestMethod.GET }],
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -33,9 +35,9 @@ async function bootstrap(): Promise<void> {
     methods: ['GET', 'POST', 'OPTIONS'],
   });
 
-  const port = Number(config.get<string>('PORT', '3001'));
-  await app.listen(port);
-  console.log(`API «Умное расписание» доступно на http://localhost:${port}/api`);
+  const port = Number(config.get<string>('PORT', '3000'));
+  await app.listen(port, '0.0.0.0');
+  console.log(`API «Умное расписание» слушает 0.0.0.0:${port}/api`);
 }
 
 void bootstrap();

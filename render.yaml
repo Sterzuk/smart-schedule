@@ -11,7 +11,7 @@ services:
     plan: free
     rootDir: backend
     buildCommand: npm install --include=dev && npm run build
-    startCommand: node scripts/prisma-cli.cjs migrate deploy && npx tsx prisma/seed.ts && node dist/main.js
+    startCommand: node scripts/start-layero.cjs
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
