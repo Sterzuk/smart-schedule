@@ -1,0 +1,37 @@
+// Схема подготовлена для MVP на SQLite.
+// Для перехода на PostgreSQL замените provider на "postgresql",
+// а DATABASE_URL — на строку подключения PostgreSQL. Модель данных
+// не зависит от конкретной СУБД.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Lesson {
+  id                  Int    @id @default(autoincrement())
+  day                 String
+  dayOrder            Int    @map("day_order")
+  lessonNumber        Int    @map("lesson_number")
+  startTime           String @map("start_time")
+  endTime             String @map("end_time")
+  subject             String
+  className           String @map("class_name")
+  room                String
+  teacher             String
+  subjectNormalized   String @map("subject_normalized")
+  classNameNormalized String @map("class_name_normalized")
+  teacherNormalized   String @map("teacher_normalized")
+
+  @@unique([className, day, lessonNumber], name: "unique_class_day_lesson")
+  @@index([day])
+  @@index([dayOrder])
+  @@index([className])
+  @@index([teacher])
+  @@index([subject])
+  @@map("lessons")
+}

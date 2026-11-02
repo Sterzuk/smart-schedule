@@ -1,0 +1,25 @@
+# Render Blueprint для backend «Умное расписание».
+# Deploy: https://dashboard.render.com/select-repo?type=blueprint
+#
+# Плата Free не поддерживает постоянный диск: т.к. расписание доступно
+# только для чтения и полностью пересоздаётся из seed, миграция и seed
+# выполняются при каждом старте сервиса.
+services:
+  - type: web
+    name: smart-schedule-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: node scripts/prisma-cli.cjs migrate deploy && npx tsx prisma/seed.ts && node dist/main.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.20.0
+      - key: DATABASE_URL
+        value: file:./dev.db
+      # Пока фронтенд деплоится, разрешаем любые origin.
+      # После публикации Vercel-адреса замените * на конкретный URL,
+      # например https://smart-schedule.vercel.app
+      - key: CORS_ORIGIN
+        value: "*"
