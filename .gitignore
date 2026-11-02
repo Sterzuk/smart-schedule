@@ -23,6 +23,10 @@ backend/prisma/*.db
 # locally prepared Prisma engines (network workaround)
 backend/.prisma-engines/
 
+# Vercel CLI local state
+.vercel-home/
+.vercel/
+
 # logs and tooling
 *.log
 npm-debug.log*
